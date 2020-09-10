@@ -1,0 +1,110 @@
+---
+title: "Assignment 1"
+author: "Aijing"
+---
+
+
+```{r, results='hide', error=FALSE, warning=FALSE,message=FALSE}
+library(tidycensus)
+library(tidyverse)
+```
+
+First, I want to look at what variables are in acs5 dataset:
+```{r}
+area_vars_2018 <- load_variables(2018, "acs5")
+```
+
+
+## Variables Choosen:
+
+I want to study whether neighborhoods composed of a majority of racial minority or migrants have different commuting patterns in Suffolk Country, MA. I included median income because it is likely that income will also significantly contribute to the commuting behaviors. Eventually, I chose the following variables:
+
+1.Median income (continuous) : 'med_income'
+
+2.Percentage of of labour force using public transportation to workplace as percentage (continuous): 'pct_publictrans'
+
+3.Travel time to workplace for labor force (continuous): 'time_travel_work'
+
+4.Majority race of the population (not Hispanic or Latino) (categorical) : 'maj_race'
+
+5.Whether the majority of the population is foreign born or not(categorical): 'maj_foreign'
+
+
+```{r}
+pop_vars <- c(
+          tot_pop = "B01003_001",
+          popln_inwork_16 = "B23025_002",
+          popln_25_64 = "B23006_001",
+          med_income = "B06011_001",
+          popln_publictrans_work = "B08119_028",
+          time_travel_work = "B08013_001", 
+          white =       "B03002_003",
+          black_AA =    "B03002_004",
+          native =      "B03002_005",
+          asian =       "B03002_006",
+          hawaiian = "B03002_007",
+          other =             "B03002_008",
+          mult_races =        "B03002_009",
+          hispanic_latino =   "B03002_012",
+          foreign_born =      "B05002_013")
+
+
+
+tracts2018 <- get_acs(geography = "tract", 
+                        variables = pop_vars, 
+                        year  = 2018,
+                        output = "wide",
+                        state = "MA",
+                        county = "Suffolk",
+                        survey = "acs5")
+
+```
+## Mutate the Variables:
+
+To obtain 'maj_race', 'maj_foreign' & 'pct_publictrans', I did the following calculations:
+
+'pct_publictrans' is obtained by dividing larbor force('popln_inwork_16') by part of larbor force using public transportation to workplace ('popln_publictrans_work')
+
+'maj_foreign' is obtained by evaluate whether whether foreign-born population constitutes more than 50% of the population. If so, the value will be 'TRUE
+', otherwise 'FALSE'.
+
+'maj_race' is obtained by evaluate if any race group constitues more than 50% of the population, if so that race will be designated as the majority race, otherwise 'no_majority' will be assigned.
+
+After the first-time execution, I found there is some entries with 'NaN' or NA, so I also added a line of filter code.
+
+```{r}
+tracts2018 <- tracts2018 %>%
+  mutate(pct_white = whiteE/tot_popE,
+         pct_black = black_AAE/tot_popE,
+         pct_hisp_lat = hispanic_latinoE/tot_popE,
+         pct_native = nativeE/tot_popE,
+         pct_asian = asianE/tot_popE,
+         pct_hawaiian = hawaiianE/tot_popE,
+         pct_mult = mult_racesE/tot_popE,
+         pct_other = otherE/tot_popE,
+         pct_publictrans = popln_publictrans_workE/popln_inwork_16E,
+         maj_foreign = foreign_bornE / tot_popE > 0.5 )%>%
+  mutate(maj_race = case_when(pct_white > 0.5 ~ "white",
+                             pct_black > 0.5 ~ "black",
+                             pct_hisp_lat > 0.5 ~ "hs_latino",
+                             pct_native > 0.5 ~ "native_am",
+                             pct_asian > 0.5 ~ "asian",
+                             pct_hawaiian > 0.5 ~ "hawaiian",
+                             pct_mult > 0.5 ~ "multi",
+                             pct_other > 0.5 ~ "other",
+                             TRUE ~ "no_majority")) %>%
+  filter(pct_publictrans != "NaN", !is.na(time_travel_workE), !is.na(med_incomeE)) %>%
+  select (maj_foreign, maj_race, pct_publictrans, 
+          time_travel_workE, med_incomeE)
+  
+```
+
+## Display & Save Results
+```{r}
+tracts2018
+```
+
+```{r}
+write_csv(tracts2018, "tracts2018_suffolk.csv")
+```
+
