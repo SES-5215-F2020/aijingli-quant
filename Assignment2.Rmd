@@ -111,7 +111,7 @@ ggplot(tract_data, aes(x = med_incomeE)) +
 The distribution of income resembles a log-normal distribution skewed to the right with a long tail. The median value is less than the mean value. This is a result of some outliers located around and beyond 90,000.
 
 
-### Pecentage of Labour Force Using Public Transportation for Commuting Histogram
+### Percentage of Labour Force Using Public Transportation for Commuting Histogram
 ```{r}
 ggplot(tract_data, aes(x = pct_publictrans)) + 
   geom_histogram(color = "gray", binwidth = 0.01) +
