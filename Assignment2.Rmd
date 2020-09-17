@@ -1,0 +1,254 @@
+---
+title: "Assignment2"
+author: "Aijing"
+date: "9/11/2020"
+output: html_document
+---
+
+
+# Load Dataset
+
+```{r, results= 'hide',message=FALSE,error=FALSE}
+library(tidycensus)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r,message=FALSE,error=FALSE}
+tract_data <- read_csv("tracts2018_suffolk.csv")
+attach(tract_data)
+```
+
+The five variables I chose from Assignment 1 are:
+
+1.Median income (continuous) : 'med_income'
+
+2.Percentage of of labour force using public transportation to workplace as percentage (continuous): 'pct_publictrans'
+
+3.Avg. Travel time to workplace for labor force (continuous): 'avg_time_travel_work'
+
+4.Majority race of the population (categorical) : 'maj_race'
+
+5.Whether the majority of the population is foreign born or not(categorical): 'maj_foreign'
+
+# Distribution of Continuous Variables
+## Descriptive statistics
+Here I calculate the sample mean, the sample standard deviation, the 95-percent confidence interval for the population mean, and the interquartile range of each continuous variable, and put them in a table.
+```{r}
+med_income_summary <- summary(med_incomeE)
+med_income_sd <- sd(med_incomeE,na.rm = TRUE)
+med_income_mean_int <- t.test(med_incomeE)
+
+pct_publictrans_summary <- summary(pct_publictrans)
+pct_publictrans_sd <- sd(pct_publictrans,na.rm = TRUE)
+pct_publictrans_mean_int <- t.test(pct_publictrans)
+
+avg_travel_time_summary <- summary(avg_travel_time)
+avg_travel_time_sd <- sd(avg_travel_time,na.rm = TRUE)
+avg_travel_time_mean_int <- t.test(avg_travel_time)
+```
+
+
+```{r}
+summary_table <- tibble(
+  Statistic = c("Sample mean", 
+                "Median",
+                "Standard deviation",
+                "Interquartile range",
+                "Population mean (95% confidence)"),
+  `Median Incomes (dolloars)` = c(prettyNum(med_income_summary["Mean"], digits=3),
+                           med_income_summary["Median"],
+                           prettyNum(med_income_sd, digits = 3),
+                           paste(med_income_summary["1st Qu."],"to", 
+                                 med_income_summary["3rd Qu."]),
+                           paste(prettyNum(med_income_mean_int$conf.int[1],
+                                           digits=3), "to",
+                                 prettyNum(med_income_mean_int$conf.int[2],
+                                           digits=3))),
+  
+  `Pecentage of Labour Force Using Public Transportation for Commuting` = 
+                         c(paste(prettyNum(pct_publictrans_summary["Mean"]*100, 
+                                           digits=3),"%"),
+                           paste(prettyNum(pct_publictrans_summary["Median"]*100,
+                                           digits=3),"%"),
+                           paste(prettyNum(pct_publictrans_sd*100, digits=3),"%"),
+                           paste(prettyNum(pct_publictrans_summary["1st Qu."]*100, 
+                                           digits=3),
+                                 "% to", 
+                                 prettyNum(pct_publictrans_summary["3rd Qu."]*100, 
+                                           digits=3), "%"),
+                           paste(prettyNum(pct_publictrans_mean_int$conf.int[1]*100,
+                                           digits=3), "% to",
+                                 prettyNum(pct_publictrans_mean_int$conf.int[2]*100,
+                                           digits=3), "%")),
+  `Avg. Travel time to workplace (minitues)` =
+    c(prettyNum(avg_travel_time_summary["Mean"], digits=3),
+      prettyNum(avg_travel_time_summary["Median"]),
+      prettyNum(avg_travel_time_sd, digits=3),
+      paste(prettyNum(avg_travel_time_summary["1st Qu."], digits=3), "to",
+            prettyNum(avg_travel_time_summary["3rd Qu."], digits=3)
+            ),
+      paste(prettyNum(avg_travel_time_mean_int$conf.int[1],digits=3),"to",
+            prettyNum(avg_travel_time_mean_int$conf.int[2],digits=3)
+            )
+      )
+)
+
+knitr::kable(summary_table, 
+             caption = "Characteristics of census tracts in Suffolk County")
+
+
+```
+## Histogram
+
+### Median Income Histogram
+```{r}
+ggplot(tract_data, aes(x = med_incomeE)) + 
+  geom_histogram(binwidth = 2000) +theme_bw() +scale_x_continuous(name = "Median Income (dollars)",breaks = breaks <- seq(0, 90000, by = 10000),
+                     labels = paste(breaks)) + scale_y_continuous(name = "Number of people in sample")  
+```
+
+The distribution of income resembles a log-normal distribution skewed to the right with a long tail. The median value is less than the mean value. This is a result of some outliers located around and beyond 90,000.
+
+
+### Pecentage of Labour Force Using Public Transportation for Commuting Histogram
+```{r}
+ggplot(tract_data, aes(x = pct_publictrans)) + 
+  geom_histogram(color = "gray", binwidth = 0.01) +
+  theme_bw() +
+  scale_x_continuous(name = "% Labour Force using Public Transportation for Commuting",breaks = breaks <- seq(0, 0.70, by = 0.05),
+                     labels = paste(breaks*100, "%", sep='')) + 
+  scale_y_continuous(name = "Number of people in sample") 
+```
+
+The distribution of percentage of labour force using public transportation has a normal distribution that is also skewed to the right with a long tail. Outliers around 55~70% bring the average of the distribution up, with most of the observations concentrated to the left.
+
+### Avg. Travel Time Histogram
+```{r}
+ggplot(tract_data, aes(x = avg_travel_time)) + 
+  geom_histogram(color = "gray",binwidth = 1) +
+  theme_bw() +
+  scale_x_continuous(name = "Avg.Travel time to workplace for labor force(minutes)",
+                     breaks = breaks <- seq(0, 40, by = 5),
+                     labels = paste(breaks)
+                     ) + 
+  scale_y_continuous(name = "Number of people in sample")
+```
+Data of travel time again resembles a normal distribution but negatively skewed. The mean and median are very close, indicating that there is no significant outliers.
+
+# Distribution of Categorical Variables
+## Descriptive statistics
+Here I calculate 95-percent confidence interval for the proportion of the population in each category:
+```{r}
+black <- t.test (maj_race == "black")
+hs_latino <- t.test (maj_race == "hs_latino")
+no_majority <- t.test (maj_race == "no_majority")
+white <- t.test (maj_race == "white")
+asian <- t.test (maj_race == "asian")
+```
+
+```{r}
+race_shares <- tibble(`Majority Race` = c("Hispanic/Latino",
+                                  "White (not Hispanic/Latino)",
+                                  "No Majority",
+                                  "Asian (not Hispanic/Latino)",
+                                  "Black (not Hispanic/Latino)"),
+                 `Sample proportion` = c(paste(prettyNum(hs_latino$estimate*100, 
+                                                         digits = 3), "%"),
+                                         paste(prettyNum(white$estimate*100, 
+                                                         digits = 3), "%"),
+                                         paste(prettyNum(no_majority$estimate*100, 
+                                                         digits = 3), "%"),
+                                         paste(prettyNum(asian$estimate*100, 
+                                                         digits = 3), "%"),
+                                         paste(prettyNum(black$estimate*100, 
+                                                         digits = 3), "%")),
+                 `95-percent confidence interval` = c(
+                   paste(prettyNum(hs_latino$conf.int[1]*100, digits=3),
+                         "% to ",
+                         prettyNum(hs_latino$conf.int[2]*100, digits=3),
+                         "%", sep=""),
+                   paste(prettyNum(white$conf.int[1]*100, digits=3),
+                         "% to ",
+                         prettyNum(white$conf.int[2]*100, digits=3),
+                         "%", sep=""),
+                   paste(prettyNum(no_majority$conf.int[1]*100, digits=3),
+                         "% to ",
+                         prettyNum(no_majority$conf.int[2]*100, digits=3),
+                         "%", sep=""),
+                   paste(prettyNum(asian$conf.int[1]*100, digits=3),
+                         "% to ",
+                         prettyNum(asian$conf.int[2]*100, digits=3),
+                         "%", sep=""),
+                   paste(prettyNum(black$conf.int[1]*100, digits=3),
+                         "% to ",
+                         prettyNum(black$conf.int[2]*100, digits=3),
+                         "%", sep="")))
+                   
+                   
+knitr::kable(race_shares, caption = "Census tracts in Los Angeles County")
+```
+```{r}
+maj_for_born <- t.test(maj_foreign)
+maj_nat_born <- t.test(!maj_foreign)
+```
+
+```{r}
+for_shares <- tibble(`Majority nativity` = c("Native born","Foreign born"), 
+                     `Sample proportion` =
+                       c(paste(prettyNum(maj_nat_born$estimate*100,
+                                         digits = 3), "%"),
+                         paste(prettyNum(maj_for_born$estimate*100,
+                                         digits = 3), "%")), 
+                      `95-percent confidence interval` =  
+                        c(paste(prettyNum(maj_nat_born$conf.int[1]*100,
+                                          digits = 3), "% to ",
+                                prettyNum(maj_nat_born$conf.int[2]*100,
+                                          digits = 3), "%"),
+                         paste(prettyNum(maj_for_born$conf.int[1]*100,
+                                          digits = 3), "% to ",
+                                prettyNum(maj_for_born$conf.int[2]*100,
+                                          digits = 3), "%")))
+knitr::kable(for_shares, caption = "Census tracts in Los Angeles County")
+```
+
+## Bar Chart
+### Majority Race Proportion Bar Chart
+
+In the code below I create another two numeric variables to store my majority race data because the ones I used for making tables are strings and can not be used to pass into bar chart function.
+```{r}
+                 `num proportion` = c(hs_latino$estimate,
+                                      white$estimate,
+                                         no_majority$estimate,
+                                         asian$estimate, 
+                                         black$estimate)
+                                                   
+                  low = c(
+                   hs_latino$conf.int[1],
+                   white$conf.int[1],
+                   no_majority$conf.int[1],
+                   asian$conf.int[1],
+                   black$conf.int[1])
+
+                   high = c(
+                   hs_latino$conf.int[2],
+                   white$conf.int[2],
+                   no_majority$conf.int[2],
+                   asian$conf.int[2],
+                   black$conf.int[2]
+                  )
+                   
+ggplot(race_shares , aes(x = `Majority Race`, y = `num proportion`)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = low, ymax = high), width = 0.2) +
+  theme_bw() +
+  scale_x_discrete(labels = c("Hispanic Latino", 
+                            "White", 
+                            "No majority",
+                            "Asian",
+                            "Black")) +
+  scale_y_continuous(name = "Share of population (error bars represent\n 95-percent confidence interval)",
+                     breaks = c(0, 0.1, 0.2, 0.3, 0.4, 0.5),
+                     labels = c("0", "10%", "20%", "30%", "40%", "50%"))
+```
+
