@@ -1,0 +1,159 @@
+---
+title: "Assignment3"
+author: "Aijing"
+date: "9/20/2020"
+output: html_document
+---
+
+
+In this assignment, I will explore the relationship between median income, average travel time to workplace, percentage of labour force public transportation for commuting, majority race and nativity on the census tract level in Massachusetts state.
+
+```{r, results= 'hide',message=FALSE,error=FALSE}
+library(tidycensus)
+library(tidyverse)
+library(ggplot2)
+```
+
+```{r}
+tract_data <- read_csv("tracts2018_ma.csv")
+attach(tract_data)
+```
+
+# Relationships between continuous variables with Pearson’s correlation
+
+The three continuous variables studied here are:
+
+1.Median income (continuous) : 'med_income'
+
+2.Percentage of of labour force using public transportation to workplace(continuous): 'pct_publictrans'
+
+3.Avg. Travel time to workplace for labor force (continuous): 'avg_travel_time'
+
+```{r}
+correlation1 <- cor.test(tract_data$med_incomeE, tract_data$pct_publictrans)
+correlation1
+```
+```{r}
+correlation2 <- cor.test(tract_data$med_incomeE, tract_data$avg_travel_time)
+correlation2
+```
+```{r}
+correlation3 <- cor.test(tract_data$pct_publictrans, tract_data$avg_travel_time)
+correlation3
+```
+
+I have the following observations:
+1.Median Income and Percentage of of labour force using public transportation to workplace have a very weak but statistically significant, positive correlation at a 95% confidence level.
+2.Median Income and average travel time to workplace have weak but a statistically significant positive correlation at a 95% confidence level.
+3.Percentage of of labour force using public transportation to workplace and average travel time to workplace have a weak but statistically significant, positive correlation at a 95% confidence level.
+
+I will visualize the correlation between median Income and Percentage of of labour force using public transportation using a scatterplot.
+```{r}
+ggplot(tract_data, aes(x = pct_publictrans, y = med_incomeE)) + 
+    geom_point(size = 0.5, alpha = 0.25, position = "jitter") +
+    geom_smooth() +
+    theme_bw() +
+    scale_x_continuous(name = "Public Transportation to Workplace (Percent)") +
+    scale_y_continuous(name = "Median Income",
+                      breaks = seq(0, 100000, by = 5000), 
+                      labels = paste("",
+                                  prettyNum(seq(0, 100000, by = 5000),
+                                            big.mark = ",")))
+```
+
+# Relationship between two categorical variables with Chi-Square Test
+
+Below I will use the chi-square test of association to determine whether there is a statistically significant association between the two categorical variables:
+
+1.Majority race of the population (categorical) : 'maj_race'
+
+2.Whether the majority of the population is foreign born or not(categorical): 'maj_foreign'
+
+Because I have do not have enough observations for every category, I decide to mutate my majority race categoryinto hispanic and non-hispanic.
+
+```{r}
+tract_data_modified <- tract_data %>% 
+  mutate(maj_race = case_when(maj_race == 'asian' ~ "non_hispanic",
+                              maj_race == 'no_majority' ~ "non_hispanic",
+                              maj_race == 'white' ~ "non_hispanic",
+                              maj_race == 'hs_latino' ~ "hs_latino",
+                              maj_race == 'black' ~ "non_hispanic",))
+```
+
+
+```{r}
+chi_sq <- chisq.test(tract_data_modified$maj_race, tract_data_modified$maj_foreign == "TRUE")
+```
+```{r}
+chi_sq
+```
+```{r}
+chi_sq$observed
+```
+```{r}
+chi_sq$expected
+```
+There is a statistically significant relationship between race and nativity at a 95% confidence level.
+
+# Relationships between race and continuous variables with ANOVA
+I use the anova test to find the relationship between race and my continuous variables: median income, average travel time to workplace, percentage of labour force public transportation for commuting.
+
+```{r}
+anova <- aov (med_incomeE ~ maj_race, data = tract_data)
+summary(anova)
+```
+
+```{r}
+anova <- aov (pct_publictrans ~ maj_race, data = tract_data)
+summary(anova)
+```
+
+```{r}
+anova <- aov (avg_travel_time ~ maj_race, data = tract_data)
+summary(anova)
+```
+```{r}
+differences <- TukeyHSD(anova)
+as_tibble(cbind(pair = row.names(differences$maj_race),
+                differences$maj_race))
+```
+
+There exists a significant association between race and median income, race and percentage of labour force public transportation for commuting, and race and average travel time to workplace at a 95% confidence level. All p-values fall well below the 0.05 threshold.
+
+I chose to display the relationship between percentage of labour force public transportation for commuting and majority race using a box-plot.
+```{r}
+ggplot(tract_data, aes(x = maj_race, y = pct_publictrans)) +
+  geom_boxplot() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_discrete(name = "Majority Race") +
+    scale_y_continuous(name = "Public Transportation for Commuting(Percentage)",
+                     breaks = seq(0, 1, by = 0.05),
+                     labels = paste(prettyNum(seq(0, 1, by = 0.05))))
+```
+
+# Relationships between nativity and continuous variables with Two-sample T-test
+
+I use a two-sample t-test to test the relationship between nativity and my continuous variables: age, unemployment, and educational attainment.
+```{r}
+difference1 = t.test(med_incomeE ~ maj_foreign == "TRUE", 
+                    data = tract_data)
+difference1
+```
+
+```{r}
+difference2 = t.test(pct_publictrans ~ maj_foreign == "TRUE", 
+                    data = tract_data)
+difference2
+```
+
+```{r}
+difference3 = t.test(avg_travel_time ~ maj_foreign == "TRUE", 
+                    data = tract_data)
+difference3
+```
+There is a statistically significant relationship found between median income and nativity at a 95% confidence level; tracts with a majority foreign born population have a much lower median income.
+
+There is also a statistically significant relationship found between median income and nativity at a 95% confidence level; tracts with a majority foreign born population have a a higher percentage of labour force using public transportation for commuting.
+
+There is no significant relationship found between nativity and average travel time at a 95% confidence level.
