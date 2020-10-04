@@ -54,6 +54,6 @@ I chose white as the base case, when all other variables are controlled, public 
 
 However, with a 0.27 p-value, I was not able to find a statistically significant correlation at a 95% confidence level between tracts with majority Asian and public transit percentage.
 
-Public transit percentage is on average 11.49% higher in majority-foreign-born census tracts than in majority-native-born census tracts, controlling for other variables, and this difference is significant at a 95% confidence level.
+Public transit percentage is on average 11.49% higher in majority-foreign-born census tracts than in majority-native-born census tracts, controlling for other variables, and this difference is significant at a 95% confidence level. 
 
 

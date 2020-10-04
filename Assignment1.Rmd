@@ -9,7 +9,7 @@ library(tidycensus)
 library(tidyverse)
 ```
 
-First, I want to look at what variables are in acs5 dataset:
+#First, I want to look at what variables are in acs5 dataset:
 ```{r}
 area_vars_2018 <- load_variables(2018, "acs5")
 ```
@@ -25,7 +25,7 @@ I want to study whether neighborhoods composed of a majority of racial minority 
 
 3.Travel time to workplace for labor force (continuous): 'time_travel_work'
 
-4.Majority race of the population (not Hispanic or Latino) (categorical) : 'maj_race'
+4.Majority race of the population (categorical) : 'maj_race'
 
 5.Whether the majority of the population is foreign born or not(categorical): 'maj_foreign'
 
@@ -55,7 +55,6 @@ tracts2018 <- get_acs(geography = "tract",
                         year  = 2018,
                         output = "wide",
                         state = "MA",
-                        county = "Suffolk",
                         survey = "acs5")
 
 ```
@@ -83,7 +82,8 @@ tracts2018 <- tracts2018 %>%
          pct_mult = mult_racesE/tot_popE,
          pct_other = otherE/tot_popE,
          pct_publictrans = popln_publictrans_workE/popln_inwork_16E,
-         maj_foreign = foreign_bornE / tot_popE > 0.5 )%>%
+         maj_foreign = foreign_bornE / tot_popE > 0.5,
+         avg_travel_time = time_travel_workE/popln_inwork_16E) %>%
   mutate(maj_race = case_when(pct_white > 0.5 ~ "white",
                              pct_black > 0.5 ~ "black",
                              pct_hisp_lat > 0.5 ~ "hs_latino",
@@ -95,7 +95,7 @@ tracts2018 <- tracts2018 %>%
                              TRUE ~ "no_majority")) %>%
   filter(pct_publictrans != "NaN", !is.na(time_travel_workE), !is.na(med_incomeE)) %>%
   select (maj_foreign, maj_race, pct_publictrans, 
-          time_travel_workE, med_incomeE)
+          time_travel_workE, med_incomeE,avg_travel_time)
   
 ```
 
@@ -105,6 +105,6 @@ tracts2018
 ```
 
 ```{r}
-write_csv(tracts2018, "tracts2018_suffolk.csv")
+write_csv(tracts2018, "tracts2018_ma.csv")
 ```
 
