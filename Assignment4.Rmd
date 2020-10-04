@@ -1,0 +1,59 @@
+---
+title: "Assignment4"
+author: "Aijing"
+date: "9/27/2020"
+output: html_document
+---
+
+# Linear Regression Model
+
+Dependent Variable: percentage of labour force using public transit to workplace, pct_publictrans
+
+Independent Variables:
+
+1. median income: med_income
+
+2. avg travel time to workplace: avg_travel_time
+
+3. majority race: maj_race
+
+4. majority foreign or native born: maj_foreign
+
+```{r,results='hide', error=FALSE, warning=FALSE,message=FALSE}
+library(tidyverse)
+```
+
+
+```{r}
+tract_data <- read_csv("tracts2018_ma.csv") %>%
+  mutate(maj_race = case_when(
+    maj_race=="hs_latino" ~ "Hispanic/Latino", 
+    maj_race=="black" ~ "Black not Hispanic/Latino",
+    maj_race=="white" ~ "-White not Hispanic/Latino",
+    maj_race=="asian" ~ "Asian not Hispanic/Latino",
+    maj_race=="no_majority" ~ "No Majority")) %>%
+  mutate(pct_publictrans = pct_publictrans*100)
+```
+```{r}
+options(scipen = 5, digits = 4)
+
+model <- lm(pct_publictrans ~ med_incomeE + avg_travel_time + maj_race + maj_foreign, 
+            data = tract_data)
+summary(model)
+```
+
+# Linear Regression Interpretation
+
+With an adjusted R Square value of 0.256, these variables explain around 26% of the variation in percentage of labour force using public transit to workplace(hereafter public transit percentage). However, not all of these relationships are statistically significant. According to the linear regression model, tracts categorized to Asians as majority does not have a statistically significant relationship in predicting public transit percentage. Except from that, all other continuous variables and categories under race and nativity variables do have significant relationship in predicting public transit percentage.
+
+Median income has an positive relationship with my dependent variable, meaning that as the median income increases, the proportion of the work force use public transit increases. For every one dollar increase in the census tract’s median income, the value of pct_publictrans increases by 0.0001338%, which corresponds to every 10000 dollar increase in median income will increase pct_publictrans by around 1.4%. This difference is small, but statistically significant at a 95% confidence level.This is counter-intuitive, but I think this might have something to do with downtown tracts, which are likely to have better public transit provision as well as higher median income, or maybe tracts with lowest income are so marginalized in terms of public transit provision that taking public transit to work is not a viable option.
+
+Public transit percentage is an average of 0.48% higher with every one minute increase in travel time to workplace average on the entire tract's workforce. This is a large difference, and is statistically significant at a 95% confidence level.
+
+I chose white as the base case, when all other variables are controlled, public transit percentage is 22.57% higher in census tracts with majority Black than census tracts with majority population white. Similarly, public transit percentage is 8.71% higher in census tracts that are majority Hispanic or Latino than in those that are majority white. Tracts with no majority racial/ethnic group is 9.95% higher than base case. 
+
+However, with a 0.27 p-value, I was not able to find a statistically significant correlation at a 95% confidence level between tracts with majority Asian and public transit percentage.
+
+Public transit percentage is on average 11.49% higher in majority-foreign-born census tracts than in majority-native-born census tracts, controlling for other variables, and this difference is significant at a 95% confidence level.
+
+
