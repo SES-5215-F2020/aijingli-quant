@@ -1,0 +1,208 @@
+---
+title: "Assignment5"
+author: "Aijing"
+date: "10/5/2020"
+output: html_document
+---
+```{r, results='hide', error=FALSE, warning=FALSE,message=FALSE}
+library(tidyverse)
+library(jtools)
+library(interactions)
+library(knitr)
+library(ggplot2)
+```
+
+
+# Original Model
+
+Dependent Variable: avg travel time to workplace: avg_travel_time
+
+Independent Variables:
+
+1. median income: med_income
+
+2. percentage of labour force using public transit to workplace(hereafter, public transit percentage), pct_publictrans
+
+3. majority race: maj_race
+
+4. majority foreign or native born: maj_foreign
+
+```{r}
+tract_data <- read_csv("tracts2018_ma.csv") %>%
+  mutate(maj_race = case_when(
+    maj_race=="hs_latino" ~ "Hispanic/Latino", 
+    maj_race=="black" ~ "Black not Hispanic/Latino",
+    maj_race=="white" ~ "-White not Hispanic/Latino",
+    maj_race=="asian" ~ "Asian not Hispanic/Latino",
+    maj_race=="no_majority" ~ "No Majority")) %>%
+  mutate(pct_publictrans = pct_publictrans*100)
+```
+```{r}
+options(scipen = 5, digits = 4)
+
+model1 <- lm( avg_travel_time~ med_incomeE + pct_publictrans + maj_race + maj_foreign, 
+            data = tract_data)
+summary(model)
+```
+
+
+# Log Transformation
+
+The difference between earning $5,000 per year and $10,000 is probably more substantial than the difference between earning $50,000 per year and $55,000 per year. In the former case, income has increased by 100%, and in the latter, income has increased by 10%. In the case of income and average travel time, I think percentage increases are more relevant than absolute increases, so below i will log-tranform my median income variable.
+```{r}
+model2 <- lm(avg_travel_time~ log(med_incomeE) + pct_publictrans + maj_race + maj_foreign, 
+            data = tract_data)
+
+summary(model2)
+```
+The r-square increased by around 0.075. Log-transformed median income have a statistically significant positive correlation with average travel time, When median income doubles(one unit increase in log), the public transit percentage will also increase by 6.26 minutes.
+
+
+# Converting a continuous variable to a categorical variable
+I suspect the influence of median income on public transit percentage is not in a linear but step-wise fashion, i.e. once people's income have reached certain thresholds the influence on average travel time will be more or less homogeneous within that band. So I decide to test out this by divide median income variable by 4 bands: low-income 0~25,000, lower_medium-income:25,000~50,000, higher_medium-income:50,000~75,000 and high-income: 75,000 above.
+```{r}
+tract_data2 <- tract_data %>%
+  mutate(income_group = case_when(med_incomeE < 25000 ~ "-Low_income",
+                               25000 <= med_incomeE &  med_incomeE< 50000 ~ "Lower_Medium_income",
+                               50000 <= med_incomeE &  med_incomeE< 75000 ~ "Higher_Medium_income",
+                               med_incomeE >= 75000 ~ "High_income"))
+
+model3 <- lm(avg_travel_time~ income_group +  pct_publictrans+ maj_race + maj_foreign, 
+            data = tract_data2)
+
+summary(model3)
+```
+The overall fit slightly improves as r-square increase by 0.004 compared to my original model. Interestingly, the new model shows a move from low-income to any of the other 3 groups all have a positive statically significant correlation with average travel time at a 95% confidence level. While a move from low-income to higher medium-income has the most prominent effect: it will increase travel time by 7.63 minutes.
+
+
+# Adding an interaction term
+I wonder if median income have a different impact on different races? To test out, I add three interactive terms as below:
+
+```{r}
+
+model4 <- lm(avg_travel_time ~ log(med_incomeE) + pct_publictrans + maj_race + maj_foreign + log(med_incomeE):maj_race,
+            data = tract_data)
+
+summary(model4)
+```
+The log-transformation on median income and an interactive term between race and log of median income increase the r-square by around 0.077. Log-transformed median income have a statistically significant extra impact on Hispanic/Latino group: every doubling in median income in a tract with majority Hispanic/Latino will increase the travel time by 4.53 minute. However, I was not able to find such a statistically significant extra impact of median income for other racial groups.
+
+
+# Visualizing the results
+```{r}
+ModelFit <- tibble(model = c(1, 2, 3, 4),
+                   R_square = c(summary(model1)$adj.r.squared,
+                                summary(model2)$adj.r.squared,
+                                summary(model3)$adj.r.squared,
+                                summary(model4)$adj.r.squared))
+
+ggplot(ModelFit, aes(x = model, y = R_square)) +
+  geom_line() +
+  scale_x_continuous(name = "",
+                   breaks = breaks <- seq(1, 4, by = 1),
+                   labels = paste("Model", breaks)) +
+  scale_y_continuous(name = "Adjusted R-squared value") +
+  theme_bw()
+```
+
+The graph tells me that model4 has the best improvement on overall fit of my regression model.
+
+Below I will compare the coefficient change in each variable between model1 and model4 in a table.
+ 
+
+```{r}
+coeff_names <- c(
+                 "Public transit percentage" = "pct_publictrans",
+                 "Log of median Income" = "log(med_incomeE)",
+                 "Median Income" = "med_incomeE",
+          
+                 "Asian(compared to White)" = "maj_raceAsian not Hispanic/Latino",
+                 "Black(compared to White)" = "maj_raceBlack not Hispanic/Latino",
+                 "Hispanic and Latino(compared to White)" = "maj_raceBlack not Hispanic/Latino",
+                 "No Racial Majority(compared to White)" = "maj_raceNo Majority",
+                 
+                 "Majority Foreign Born(compared to Native)" = 'maj_foreignTRUE',
+                 
+                 "Interaction:\nAsian and Log of Median Income" = 
+                    "log(med_incomeE):maj_raceAsian not Hispanic/Latino",
+                 
+                 "Interaction:\nBlack and Log of Median Income" = 
+                    "log(med_incomeE):maj_raceBlack not Hispanic/Latino",
+                 
+                 "Interaction:\nHispanic/Latino and Log of Median Income" = 
+                    "log(med_incomeE):maj_raceHispanic/Latino",
+                 
+                 "Interaction:\nNo Majority and Log of Median Income" = 
+                    "log(med_incomeE):maj_raceNo Majority"
+                  )
+                 
+
+               
+
+export_summs(model1, model4, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Initial model", "Preferred model"),
+             coefs = coeff_names)
+```
+
+```{r}
+coeff_desc <- c("Majority Asian AND Doubling in Median Income" = 
+                  "log(med_incomeE):maj_raceAsian not Hispanic/Latino",
+                
+                "Majority Black AND Doubling in Median Income" = 
+                  "log(med_incomeE):maj_raceBlack not Hispanic/Latino",
+                
+                "Majority Hispanic/Latin AND Doubling in Median Income" = 
+                  "log(med_incomeE):maj_raceHispanic/Latino",
+                
+                "No Majority AND Doubling in Median Income" = 
+                  "log(med_incomeE):maj_raceNo Majority",
+                 
+                 "1 percentage increase in\n share of public transit" = "pct_publictrans",
+          
+                 "Asian\n(compared to White)" = "maj_raceAsian not Hispanic/Latino",
+                 "Black\n(compared to White)" = "maj_raceBlack not Hispanic/Latino",
+                 "Hispanic and Latino\n(compared to White)" = "maj_raceBlack not Hispanic/Latino",
+                 "No Racial Majority\n(compared to White)" = "maj_raceNo Majority",
+                 
+                 "Majority Native\n(compared to Foreign-born)" = 'maj_foreignTRUE')
+                 
+                
+
+plot_coefs(model4, 
+           coefs = coeff_desc,
+           plot.distributions = TRUE,
+           rescale.distributions = TRUE) +
+  scale_x_continuous(name = "Effect on percentage of workforce using public transit to workplace")
+```
+
+
+
+```{r}
+interact_plot(model4, pred = med_incomeE, modx = maj_race, interval = TRUE) +
+  scale_x_continuous(name = "Median income (thousands)",
+                     limits = c(0, 110000),
+                     breaks = breaks <- seq(0, 110000, by = 10000),
+                     labels = paste("$", 
+                                    prettyNum(breaks/1000, big.mark = "'"),
+                                    sep = "")) +
+  scale_y_continuous(name = "Average Travel Time to Work",
+                     breaks = breaks <- seq(0, 50, by = 5)) +
+  scale_color_discrete(name = "") +
+  scale_linetype_discrete(name = "") +
+  scale_fill_discrete(name = "") 
+```
+
+```{r}
+cat_plot(model4, pred = maj_race, modx = maj_foreign , interval = TRUE) +
+ scale_x_discrete(name = "Majority Race",
+                    labels = c("Asian", "Black","HIspanic/Latino",
+                               "No Majority","White")) +
+  scale_y_continuous(name = "Public Transit Percenatge",
+                     breaks = seq(0, 45, by = 5)) +
+  scale_color_discrete(name = "") +
+  scale_linetype_discrete(name = "") +
+  scale_fill_discrete(name = "") 
+```
+Since I do not have an interactive term between majority race and nativity, the differencec between native and foreign-born are consistent among all racial groups.
